@@ -21,7 +21,7 @@
 #        --alb-ingress-access
 #############
 kubectl apply -f eks-cluster-setup/rbac-tiller.yaml
-helm init --service-account tiller
+helm init --service-account tiller --wait
 helm repo add kubefed-charts https://raw.githubusercontent.com/kubernetes-sigs/kubefed/master/charts
 sleep 10
 helm install kubefed-charts/kubefed --name kubefed --version=0.1.0-rc6 --namespace kube-federation-system
