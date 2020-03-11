@@ -1,0 +1,66 @@
+#!/bin/bash
+
+set -ex
+
+
+ReplaceAndLowerTheKubeConfig() {
+
+    local file=$1
+    #declare -p file
+
+    local searchServer=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("awsfed")) | .name' | jq -r .)
+    local replaceServer=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("awsfed")) | .name | sub(".*/";"")'| jq -r .)
+    local serverURL=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("awsfed")) | .cluster.server' | jq -r .)
+
+    echo ${#searchServer}
+
+    if [ ${#searchServer} -gt 0 ]; then
+        echo 'Found Cluster name and it will be shortened'
+    else
+        echo 'Cluster name is empty or null in kubeconfig file'
+        exit
+    fi
+
+    if [ ${#serverURL} -gt 4 ]; then
+        echo 'Server URL found and would be lowered'
+    else
+        echo 'Cluster URL is empty or null in kubeconfig file'
+        exit
+    fi
+
+    local lowerServerURL=$(echo "$serverURL" | tr '[:upper:]' '[:lower:]')
+
+    #fullpath=$(realpath --relative-to=${PWD} "$file")
+
+    # Replacing cluster name
+    sed -i "s!${searchServer}!${replaceServer}!g" "$file"
+
+    # Lowering cluster URLs
+    sed -i "s!${serverURL}!${lowerServerURL}!g" "$file"
+}
+
+cat ~/.kube/config > ~/.kube/config_orig
+
+#Changing UpperCase to LowerCase for kubfed and lowering enpoind url
+ReplaceAndLowerTheKubeConfig ~/.kube/config
+
+# merge 2 configs into one
+KUBECONFIG=~/.kube/config:/var/tmp/mcs_k8s_cfg kubectl config view --flatten > ~/.kube/config2
+cat ~/.kube/config2 > ~/.kube/config
+
+
+kubeFed_CTX=$(kubectl config view -o json | jq -c '.contexts[] | select (.name | contains("awsfed")) | .name' | jq -r .)
+echo "kubeFed_CTX:$kubeFed_CTX"
+kubeMCS_CTX=$(kubectl config view -o json | jq -c '.contexts[] | select (.name | contains("mcs-cluster")) | .name' | jq -r .)
+echo "kubeFedMCS_CTX:$kubeMCS_CTX"
+kubeFed_clustername=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("awsfed")) | .name' | jq -r .)
+echo "kubeFed_clustername:$kubeFed_clustername"
+kubeMCS_clustername=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("mcs-cluster")) | .name' | jq -r .)
+echo "kubeMCS_clustername:$kubeMCS_clustername"
+
+kubefedctl join $kubeFed_clustername --cluster-context $kubeFed_CTX  --host-cluster-context $kubeFed_CTX --v=2
+kubefedctl join $kubeMCS_clustername --cluster-context $kubeMCS_CTX  --host-cluster-context $kubeFed_CTX --v=2
+
+kubectl apply -f fed-app-example/namespace.yaml # create test NS
+kubectl apply -f k8s-fed-yml-setup/federated-namespace.yaml # create Federated NS
+kubectl apply -f fed-app-example/federated-nginx.yaml # federated Nginx Deployment

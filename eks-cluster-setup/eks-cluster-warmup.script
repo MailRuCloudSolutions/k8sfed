@@ -1,0 +1,27 @@
+#!/bin/bash
+
+#$clustername=$0
+# eks-kubefed = AWS EKS cluster name from k8s context file, default/kubernetes-cluster-5454 = MCS k8s
+# eksctl create cluster -f eks-cluster-setup/eks-cluster.yaml
+# Create cluster with another VPC CIDR
+#CLUSTER_NAME=kubefed2
+#REGION=eu-central-1
+#VPC_CIDR=10.1.0.0/16
+#NODES_COUNT=2
+#NODES_TYPE=t3.large
+#eksctl create cluster \
+#        --name=$CLUSTER_NAME \
+#        --region=$REGION \
+#        --vpc-cidr=$VPC_CIDR \
+#        --nodes=$NODES_COUNT \
+#        --node-type=$NODES_TYPE \
+#        --asg-access \
+#        --full-ecr-access \
+#        --external-dns-access \
+#        --alb-ingress-access
+#############
+kubectl apply -f eks-cluster-setup/rbac-tiller.yaml
+helm init --service-account tiller
+helm repo add kubefed-charts https://raw.githubusercontent.com/kubernetes-sigs/kubefed/master/charts
+sleep 10
+helm install kubefed-charts/kubefed --name kubefed --version=0.1.0-rc6 --namespace kube-federation-system
