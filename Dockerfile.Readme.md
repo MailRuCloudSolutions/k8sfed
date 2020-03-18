@@ -23,4 +23,4 @@ Main script is `super-big-script.sh`. After specifying credentials (see Inputs),
 
 ## Outputs
 
-* Keypair for accessing Kubernetes cluster in MCS will be stored in `/app/k8s-fed_id_rsa`. Save it, before exiting container.
+* MCS: Keypair with name `k8s-fed` is expected. It is recommended to create it manually beforehand. If doesn't exist it will be generated and stored in `/var/tmp/k8s-fed_id_rsa`. Save it, before exiting container. It should be used to access VPN server and Kubernetes nodes.

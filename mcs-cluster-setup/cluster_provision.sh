@@ -2,9 +2,10 @@
 
 set -eux
 
-openstack_token=$(openstack token issue -c id -f value)
-
-openstack keypair show $mcs_keypair || openstack keypair create -f value $mcs_keypair > ./k8s-fed_id_rsa
+K8S_CFG_PATH=$1
+NETWORK_ID=$2
+SUBNET_ID=$3
+KEYPAIR_NAME=$4
 
 CLUSTER_NAME="mcs-cluster-$RAND_PART"
 
@@ -12,7 +13,7 @@ cluster_payload=$(cat << EOF
 {
     "cluster_template_id": "a6b541da-c3fa-420a-9cb9-29a34b7ec2c9",
     "flavor_id": "Standard-2-4-40",
-    "keypair": "$mcs_keypair",
+    "keypair": "$KEYPAIR_NAME",
     "master_count": 1,
     "master_flavor_id": "Standard-2-4-40",
     "name": "$CLUSTER_NAME",
@@ -25,8 +26,8 @@ cluster_payload=$(cat << EOF
         "heapster_enabled": false,
         "influx_grafana_dashboard_enabled": false,
         "prometheus_monitoring": false,
-        "fixed_network": "$2",
-        "fixed_subnet": "$3"
+        "fixed_network": "$NETWORK_ID",
+        "fixed_subnet": "$SUBNET_ID"
     }
 }
 EOF
@@ -61,6 +62,10 @@ write_cluster_kubeconfig () {
     curl -s -g -X GET https://infra.mail.ru:9511/v1/clusters/$2/kube_config -H "Content-Type: application/json" -H "X-Auth-Token: $1" > $3
 }
 
+get_api_private_ip () {
+    curl -s -H "Accept: application/json" -H "Content-Type: application/json" -H "X-Auth-Token: $1" "https://infra.mail.ru:9696/v2.0/lbaas/loadbalancers?name=${CLUSTER_NAME}-api-lb" | python -c "import sys, json; print(json.load(sys.stdin)['loadbalancers'][0]['vip_address'])"
+}
+
 provision_cluster() {
     echo Acquiring token...
     openstack_token=$(openstack token issue -c id -f value)
@@ -68,8 +73,12 @@ provision_cluster() {
     cluster_uuid=$(create_cluster $openstack_token)
     echo Created cluster with uuid $cluster_uuid
     wait_for_create $openstack_token $cluster_uuid
+    openstack_token=$(openstack token issue -c id -f value)
     echo Downloading kubeconfig file into $1
     write_cluster_kubeconfig $openstack_token $cluster_uuid $1
+    echo Updating API endpoint
+    api_lb_private_ip=$(get_api_private_ip $openstack_token)
+    sed -i "s#https://.*:6443#https://$api_lb_private_ip:6443#g" $1
 }
 
-provision_cluster $1
+provision_cluster $K8S_CFG_PATH

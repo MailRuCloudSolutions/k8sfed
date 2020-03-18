@@ -22,12 +22,16 @@ vpn_cfg_path=/var/tmp/vpn_cfg_conn.xml
 mcs_k8s_cfg_path=/var/tmp/mcs_k8s_cfg
 mcs_netwid_path=/var/tmp/mcs_netwid_cfg
 mcs_subnetid_path=/var/tmp/mcs_subnetid_cfg
+mcs_keypair_path=/var/tmp/k8s-fed_id_rsa
+mcs_keypair="k8s-fed"
+
 aws_vpnconnid_path=/var/tmp/vpnconnid
 aws_region=eu-west-2
 
 # CIDR Ip block on MCS side that should be added as static route on AWS side after VPN connection
 # Thats CIDR block would be reserved in newly created subnet on MCS side and could be changed to anything
 mcs_cidr="192.168.10.0/24"
+aws_cidr="10.2.0.0/16"
 
 # Install EKS via CDK
 # All cluster init configuration located /CDK_py/cdk_py/cdk_py_stack.py
@@ -60,7 +64,6 @@ source ./openrc
 
 # Shared variables
 export RAND_PART=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
-export mcs_keypair="k8s-fed"
 
 # Creating External Ip adress on MCS side that would be paired with AWS VPN Gateway
 extip=$(./mcs-cluster-setup/create_extip.sh)
@@ -71,7 +74,6 @@ echo $extip > /var/tmp/extip
 ./mcs-cluster-setup/create_network_resources.sh $mcs_cidr $mcs_netwid_path $mcs_subnetid_path
 mcs_netw_id=$(cat $mcs_netwid_path)
 mcs_subid_id=$(cat $mcs_subnetid_path)
-./mcs-cluster-setup/cluster_provision.sh $mcs_k8s_cfg_path $mcs_netw_id $mcs_subid_id
 
 # Install AWS VPN resources (VPN Gateway, Customer Gateway and etc) to establish VPN connections
 # Params:   extip - newly created on MCS side ip for VPN pairing
@@ -80,7 +82,7 @@ mcs_subid_id=$(cat $mcs_subnetid_path)
 ./site-to-site-VPN-AWS/vpn-create-cfn.sh $extip $mcs_cidr $vpn_cfg_path $aws_vpnconnid_path $aws_region
 
 #Creating virtual machine on MCS side with strongswan Ipsec VPN server and establishing connetion to AWS
-./mcs-cluster-setup/vpnserver.sh $extip $mcs_netw_id $vpn_cfg_path
+./mcs-cluster-setup/vpnserver.sh $extip $mcs_netw_id $mcs_subid_id $vpn_cfg_path $mcs_cidr $aws_cidr $mcs_keypair $mcs_keypair_path
 
 # Wait func for S2S VPN Connection is UP (AWS+MCS)
 wait_for_create_vpn() {
@@ -104,6 +106,9 @@ wait_for_create_vpn() {
 # Checking whether VPN connection got UP eventually
 vpnconnid=$(cat $aws_vpnconnid_path)
 wait_for_create_vpn $vpnconnid
+
+# Creating MCS k8s
+./mcs-cluster-setup/cluster_provision.sh $mcs_k8s_cfg_path $mcs_netw_id $mcs_subid_id $mcs_keypair
 
 # Federation
 ./eks-cluster-setup/eks-cluster-join-fed.script
