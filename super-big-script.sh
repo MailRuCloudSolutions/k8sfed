@@ -23,7 +23,6 @@ mcs_k8s_cfg_path=/var/tmp/mcs_k8s_cfg
 mcs_netwid_path=/var/tmp/mcs_netwid_cfg
 mcs_subnetid_path=/var/tmp/mcs_subnetid_cfg
 mcs_keypair_path=/var/tmp/k8s-fed_id_rsa
-mcs_keypair="k8s-fed"
 
 aws_vpnconnid_path=/var/tmp/vpnconnid
 aws_region=eu-west-2
@@ -64,6 +63,8 @@ source ./openrc
 
 # Shared variables
 export RAND_PART=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 4 | head -n 1)
+
+mcs_keypair="k8s-fed-$RAND_PART"
 
 # Creating External Ip adress on MCS side that would be paired with AWS VPN Gateway
 extip=$(./mcs-cluster-setup/create_extip.sh)
@@ -112,5 +113,15 @@ wait_for_create_vpn $vpnconnid
 
 # Federation
 ./eks-cluster-setup/eks-cluster-join-fed.script
+
+# Configuring federation from VPN server
+./exec-kubefed.py --host $extip --user centos --private-key $mcs_keypair_path --remote-path '/home/centos'
+
+# Configuring federated resources
+kubectl apply -f fed-app-example/namespace.yaml # create test NS
+kubectl apply -f k8s-fed-yml-setup/federated-namespace.yaml # create Federated NS
+kubectl apply -f fed-app-example/federated-nginx.yaml # federated Nginx Deployment
+
+kubectl -n kube-federation-system get kubefedclusters
 
 echo "Federation is up and running. Quit."

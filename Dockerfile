@@ -6,7 +6,8 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update -y && \
 	apt-get install python3 python3-pip python3-venv python-openstackclient curl -y && \
-	pip3 install --upgrade pip
+	pip3 install --upgrade pip && \
+	pip3 install -q paramiko scp
 
 RUN mkdir -p $NVM_DIR && \
 	curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.2/install.sh | bash - && \
@@ -31,4 +32,4 @@ RUN pip3 install awscli --upgrade
 COPY . /app
 WORKDIR /app
 
-CMD ['/app/super-big-script.sh']
+CMD tail -f /dev/null

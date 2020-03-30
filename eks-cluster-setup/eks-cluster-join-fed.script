@@ -47,20 +47,3 @@ ReplaceAndLowerTheKubeConfig ~/.kube/config
 # merge 2 configs into one
 KUBECONFIG=~/.kube/config:/var/tmp/mcs_k8s_cfg kubectl config view --flatten > ~/.kube/config2
 cat ~/.kube/config2 > ~/.kube/config
-
-
-kubeFed_CTX=$(kubectl config view -o json | jq -c '.contexts[] | select (.name | contains("awsfed")) | .name' | jq -r .)
-echo "kubeFed_CTX:$kubeFed_CTX"
-kubeMCS_CTX=$(kubectl config view -o json | jq -c '.contexts[] | select (.name | contains("mcs-cluster")) | .name' | jq -r .)
-echo "kubeFedMCS_CTX:$kubeMCS_CTX"
-kubeFed_clustername=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("awsfed")) | .name' | jq -r .)
-echo "kubeFed_clustername:$kubeFed_clustername"
-kubeMCS_clustername=$(kubectl config view -o json | jq -c '.clusters[] | select (.name | contains("mcs-cluster")) | .name' | jq -r .)
-echo "kubeMCS_clustername:$kubeMCS_clustername"
-
-kubefedctl join $kubeFed_clustername --cluster-context $kubeFed_CTX  --host-cluster-context $kubeFed_CTX --v=2
-kubefedctl join $kubeMCS_clustername --cluster-context $kubeMCS_CTX  --host-cluster-context $kubeFed_CTX --v=2
-
-kubectl apply -f fed-app-example/namespace.yaml # create test NS
-kubectl apply -f k8s-fed-yml-setup/federated-namespace.yaml # create Federated NS
-kubectl apply -f fed-app-example/federated-nginx.yaml # federated Nginx Deployment
