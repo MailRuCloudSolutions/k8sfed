@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Create and attach VPN Gateway, Customer GateWay, VPN-Connection to VPC
+
+Parameters: 
+
+  HomeIP:
+    Description: IP address of home network
+    Type: String
+    
+    
+  ExtRouteCIDR:
+    Description: Please enter the IP range (CIDR notation) for external network in MCS
+    Type: String
+    Default: 192.168.10.0/24
+
+  VpcId: 
+    Type: "AWS::EC2::VPC::Id"
+    Description: VpcId that VPNGateway is attached
+  
+  RouteTableIds:
+    Type: CommaDelimitedList
+    Description: Propegate Routes to the following tables delimitted with comma
+
+Resources:
+
+  VpnCgw:
+    Type: "AWS::EC2::CustomerGateway"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: "S2S-MCS-CustomerGateWay"        
+      Type: ipsec.1
+      IpAddress: !Ref HomeIP
+      BgpAsn: '65000'
+
+  VpnGw: 
+    Type: "AWS::EC2::VPNGateway"
+    Properties: 
+      Type: ipsec.1
+      Tags:
+        - Key: Name
+          Value: "S2S-MCS-VPnGateWay" 
+
+  VpnAttach: 
+    Type: "AWS::EC2::VPCGatewayAttachment"
+    Properties: 
+      VpcId: 
+        !Ref VpcId
+      VpnGatewayId: 
+        !Ref VpnGw
+    
+  VpnConnection1:
+    Type: "AWS::EC2::VPNConnection"
+    Properties:
+      Tags:
+        - Key: Name
+          Value: "S2S-MCS-VPNconnection"
+      Type: ipsec.1
+      StaticRoutesOnly: 'true'
+      VpnGatewayId: !Ref VpnGw
+      CustomerGatewayId: !Ref VpnCgw
+  
+  croute1:
+    DependsOn:
+      - VpnConnection1
+    Type: 'AWS::EC2::VPNConnectionRoute'
+    Properties:
+      VpnConnectionId: !Ref VpnConnection1
+      DestinationCidrBlock: !Ref ExtRouteCIDR
+
+  VpnRoutePropagate:
+    DependsOn:
+      - VpnAttach
+      - VpnConnection1
+      - VpnGw
+      - VpnCgw
+      - croute1
+    Type: "AWS::EC2::VPNGatewayRoutePropagation"
+    Properties: 
+      RouteTableIds: 
+        !Ref RouteTableIds 
+      VpnGatewayId:
+        !Ref VpnGw
+
+Outputs:
+  VPNGatewayId:
+    Value: !Ref VpnConnection1

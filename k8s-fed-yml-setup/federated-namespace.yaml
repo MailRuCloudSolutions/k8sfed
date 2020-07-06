@@ -1,0 +1,10 @@
+apiVersion: types.kubefed.io/v1beta1
+kind: FederatedNamespace
+metadata:
+  name: test
+  namespace: test
+spec:
+  placement:
+    clusters:
+    - name: awsfedcluster
+    - name: mcs-cluster
