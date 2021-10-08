@@ -1,3 +1,7 @@
+# The Project is deprecated.
+
+==============
+
 # Kubernetes cluster Federation between Mail.ru Cloud and AWS
 This project automates the deployment and configuration process of the demo stand. The main purpose of this deployment is to demonstrate the work of federation between two clusters: AWS EKS (Elastic Kubernetes Service) and Mail.ru Cloud Managed Kubernetes service through a secured VPN connection. Federation is done using the official Kubernetes [kubefed project](https://github.com/kubernetes-sigs/kubefed). We see these scenarios that could benifit from cluster federation but not limited to them:
 * Dynamic scaling between clusters
